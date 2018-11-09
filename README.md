@@ -65,7 +65,7 @@ pinchZoom.scaleTo(scale, {
 
 ## Demo
 
-TODO.
+[Simple image pinch-zoom](https://pinch-zoom-element.glitch.me/). Although you can put any element in `<pinch-zoom>`.
 
 ## Files
 
