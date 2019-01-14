@@ -22,7 +22,10 @@ export interface ScaleToOpts extends ChangeOptions {
 export default class PinchZoom extends HTMLElement {
     private _positioningEl?;
     private _transform;
+    static readonly observedAttributes: string[];
     constructor();
+    attributeChangedCallback(name: string, oldValue: string, newValue: string): void;
+    minScale: number;
     connectedCallback(): void;
     readonly x: number;
     readonly y: number;
