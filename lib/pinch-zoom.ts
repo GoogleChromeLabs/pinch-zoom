@@ -29,6 +29,8 @@ interface SetTransformOpts extends ChangeOptions {
 
 type ScaleRelativeToValues = 'container' | 'content';
 
+const minScaleAttr = 'min-scale';
+
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
   originX?: number | string;
@@ -87,6 +89,8 @@ export default class PinchZoom extends HTMLElement {
   // Current transform.
   private _transform: SVGMatrix = createMatrix();
 
+  static get observedAttributes() { return [minScaleAttr]; }
+
   constructor() {
     super();
 
@@ -110,6 +114,28 @@ export default class PinchZoom extends HTMLElement {
     });
 
     this.addEventListener('wheel', event => this._onWheel(event));
+  }
+
+  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+    if (name === minScaleAttr) {
+      if (this.scale < this.minScale) {
+        this.setTransform({scale: this.minScale});
+      }
+    }
+  }
+
+  get minScale(): number {
+    const attrValue = this.getAttribute(minScaleAttr);
+    if (!attrValue) return MIN_SCALE;
+
+    const value = parseFloat(attrValue);
+    if (Number.isFinite(value)) return Math.max(MIN_SCALE, value);
+
+    return MIN_SCALE;
+  }
+
+  set minScale(value: number) {
+    this.setAttribute(minScaleAttr, String(value));
   }
 
   connectedCallback() {
@@ -244,7 +270,7 @@ export default class PinchZoom extends HTMLElement {
    */
   private _updateTransform(scale: number, x: number, y: number, allowChangeEvent: boolean) {
     // Avoid scaling to zero
-    if (scale < MIN_SCALE) return;
+    if (scale < this.minScale) return;
 
     // Return if there's no change
     if (

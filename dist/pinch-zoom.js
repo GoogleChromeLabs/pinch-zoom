@@ -215,6 +215,7 @@ var PinchZoom = (function () {
     var css = "pinch-zoom {\n  display: block;\n  overflow: hidden;\n  touch-action: none;\n  --scale: 1;\n  --x: 0;\n  --y: 0;\n}\n\npinch-zoom > * {\n  transform: translate(var(--x), var(--y)) scale(var(--scale));\n  transform-origin: 0 0;\n  will-change: transform;\n}\n";
     styleInject(css);
 
+    const minScaleAttr = 'min-scale';
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -273,6 +274,26 @@ var PinchZoom = (function () {
                 },
             });
             this.addEventListener('wheel', event => this._onWheel(event));
+        }
+        static get observedAttributes() { return [minScaleAttr]; }
+        attributeChangedCallback(name, oldValue, newValue) {
+            if (name === minScaleAttr) {
+                if (this.scale < this.minScale) {
+                    this.setTransform({ scale: this.minScale });
+                }
+            }
+        }
+        get minScale() {
+            const attrValue = this.getAttribute(minScaleAttr);
+            if (!attrValue)
+                return MIN_SCALE;
+            const value = parseFloat(attrValue);
+            if (Number.isFinite(value))
+                return Math.max(MIN_SCALE, value);
+            return MIN_SCALE;
+        }
+        set minScale(value) {
+            this.setAttribute(minScaleAttr, String(value));
         }
         connectedCallback() {
             this._stageElChange();
@@ -375,7 +396,7 @@ var PinchZoom = (function () {
          */
         _updateTransform(scale, x, y, allowChangeEvent) {
             // Avoid scaling to zero
-            if (scale < MIN_SCALE)
+            if (scale < this.minScale)
                 return;
             // Return if there's no change
             if (scale === this.scale &&
