@@ -57,7 +57,7 @@ function getMidpoint(a: Point, b?: Point): Point {
 function getAbsoluteValue(value: string | number, max: number): number {
   if (typeof value === 'number') return value;
 
-  if (/% *?/.test(value)) {
+  if (/% *$/.test(value)) {
     return max * parseFloat(value) / 100;
   }
   return parseFloat(value);
