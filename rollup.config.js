@@ -2,17 +2,44 @@ import resolve from 'rollup-plugin-node-resolve';
 import typescript from 'rollup-plugin-typescript2';
 import postcss from 'rollup-plugin-postcss';
 import { terser } from "rollup-plugin-terser";
+import { dependencies } from './package.json';
+
+const mjs = {
+  plugins: [
+    typescript({ useTsconfigDeclarationDir: false }),
+    postcss()
+  ],
+  external: Object.keys(dependencies),
+  input: 'lib/index.ts',
+  output: {
+    file: 'dist/pinch-zoom.mjs',
+    format: 'esm'
+  },
+};
 
 const esm = {
   plugins: [
     typescript({ useTsconfigDeclarationDir: false }),
     postcss()
   ],
-  external: ['pointer-tracker'],
+  external: Object.keys(dependencies),
   input: 'lib/index.ts',
   output: {
-    file: 'dist/pinch-zoom.mjs',
+    file: 'dist/pinch-zoom.es.js',
     format: 'esm'
+  },
+};
+
+const cjs = {
+  plugins: [
+    typescript({ useTsconfigDeclarationDir: false }),
+    postcss()
+  ],
+  external: Object.keys(dependencies),
+  input: 'lib/index.ts',
+  output: {
+    file: 'dist/pinch-zoom.cjs.js',
+    format: 'cjs'
   },
 };
 
@@ -41,4 +68,4 @@ const iffeMin = {
   },
 };
 
-export default [esm, iffe, iffeMin];
+export default [mjs, esm, cjs, iffe, iffeMin];
