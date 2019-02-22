@@ -1,6 +1,6 @@
 {
   "name": "pinch-zoom-element",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Put stuff in an element, now you can pinch-zoom it!",
   "main": "dist/pinch-zoom.cjs.js",
   "module": "dist/pinch-zoom.es.js",
