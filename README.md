@@ -1,11 +1,13 @@
 # <pinch-zoom>
 
+Forked from https://github.com/GoogleChromeLabs/pinch-zoom
+
 A web component for pinch zooming DOM elements.
 
 ## Usage
 
 ```sh
-npm install --save-dev pinch-zoom-element
+npm install --save-dev pinch-zoom-web-component
 ```
 
 ```html
@@ -15,6 +17,17 @@ npm install --save-dev pinch-zoom-element
 ```
 
 Now the above can be pinch-zoomed!
+
+To limit the amount the image can be zoomed in/out use the following data attributes on the pinch-zoom element.
+data-min-scale
+data-max-scale
+
+This should limit the zoom in scale to 6 times the original size of the image and limit the zoom out scale to 1/2 the size.
+```html
+<pinch-zoom data-min-scale=".5" data-max-scale="6">
+  <h1>Hello!</h1>
+</pinch-zoom>
+```
 
 ## API
 
@@ -61,6 +74,13 @@ pinchZoom.scaleTo(scale, {
   // Fire a 'change' event if values are different to current values
   allowChangeEvent: false,
 });
+```
+
+## Building the source code locally
+```sh
+git clone https://github.com/guitarcenterdev/pinch-zoom.git
+npm install
+npm run build
 ```
 
 ## Demo

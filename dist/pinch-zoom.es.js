@@ -31,6 +31,7 @@ var css = "pinch-zoom {\n  display: block;\n  overflow: hidden;\n  touch-action:
 styleInject(css);
 
 const minScaleAttr = 'min-scale';
+const maxScaleAttr = 'max-scale';
 function getDistance(a, b) {
     if (!b)
         return 0;
@@ -65,6 +66,7 @@ function createPoint() {
     return getSVG().createSVGPoint();
 }
 const MIN_SCALE = 0.01;
+const MAX_SCALE = Infinity;
 class PinchZoom extends HTMLElement {
     constructor() {
         super();
@@ -90,11 +92,16 @@ class PinchZoom extends HTMLElement {
         });
         this.addEventListener('wheel', event => this._onWheel(event));
     }
-    static get observedAttributes() { return [minScaleAttr]; }
+    static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === minScaleAttr) {
             if (this.scale < this.minScale) {
                 this.setTransform({ scale: this.minScale });
+            }
+        }
+        else if (name === maxScaleAttr) {
+            if (this.scale > this.maxScale) {
+                this.setTransform({ scale: this.maxScale });
             }
         }
     }
@@ -109,6 +116,18 @@ class PinchZoom extends HTMLElement {
     }
     set minScale(value) {
         this.setAttribute(minScaleAttr, String(value));
+    }
+    get maxScale() {
+        const attrValue = this.getAttribute(maxScaleAttr);
+        if (!attrValue)
+            return MAX_SCALE;
+        const value = parseFloat(attrValue);
+        if (Number.isFinite(value))
+            return Math.min(MAX_SCALE, value);
+        return MAX_SCALE;
+    }
+    set maxScale(value) {
+        this.setAttribute(maxScaleAttr, String(value));
     }
     connectedCallback() {
         this._stageElChange();
@@ -210,8 +229,8 @@ class PinchZoom extends HTMLElement {
      * Update transform values without checking bounds. This is only called in setTransform.
      */
     _updateTransform(scale, x, y, allowChangeEvent) {
-        // Avoid scaling to zero
-        if (scale < this.minScale)
+        // Avoid scaling outside the min/max values
+        if (scale < this.minScale || scale > this.maxScale)
             return;
         // Return if there's no change
         if (scale === this.scale &&
