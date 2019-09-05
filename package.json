@@ -1,7 +1,7 @@
 {
-  "name": "pinch-zoom-element",
+  "name": "pinch-zoom-web-component",
   "version": "1.1.1",
-  "description": "Put stuff in an element, now you can pinch-zoom it!",
+  "description": "Put stuff in an element, now you can pinch-zoom it, with additional customizations!",
   "main": "dist/pinch-zoom.cjs.js",
   "module": "dist/pinch-zoom.es.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GoogleChromeLabs/pinch-zoom.git"
+    "url": "git+https://github.com/guitarcenterdev/pinch-zoom.git"
   },
   "keywords": [
     "pointer",
@@ -22,9 +22,9 @@
   "author": "Jake Archibald",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/GoogleChromeLabs/pinch-zoom/issues"
+    "url": "https://github.com/guitarcenterdev/pinch-zoom/issues"
   },
-  "homepage": "https://github.com/GoogleChromeLabs/pinch-zoom#readme",
+  "homepage": "https://github.com/guitarcenterdev/pinch-zoom#readme",
   "dependencies": {
     "pointer-tracker": "^2.0.3"
   },
