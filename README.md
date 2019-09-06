@@ -7,7 +7,7 @@ A web component for pinch zooming DOM elements.
 ## Usage
 
 ```sh
-npm install --save-dev pinch-zoom-web-component
+npm install --save-dev pinch-zoom-element
 ```
 
 ```html
