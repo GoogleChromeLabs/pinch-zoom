@@ -18,14 +18,22 @@ npm install --save-dev pinch-zoom-web-component
 
 Now the above can be pinch-zoomed!
 
-To limit the amount the image can be zoomed in/out use the following data attributes on the pinch-zoom element.
-data-min-scale
-data-max-scale
+To limit the amount the image can be zoomed in/out use the following attributes on the pinch-zoom element.
+min-scale
+max-scale
 
 This should limit the zoom in scale to 6 times the original size of the image and limit the zoom out scale to 1/2 the size.
 ```html
-<pinch-zoom data-min-scale=".5" data-max-scale="6">
+<pinch-zoom min-scale=".5" max-scale="6">
   <h1>Hello!</h1>
+</pinch-zoom>
+```
+
+To prevent movement of the element until it's scaled add the following attribute set to true.
+no-panning-until-scaled
+```html
+<pinch-zoom no-panning-until-scaled="true">
+  <h1>This can't be moved until scaling first.</h1>
 </pinch-zoom>
 ```
 

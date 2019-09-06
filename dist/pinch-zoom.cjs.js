@@ -36,6 +36,7 @@ styleInject(css);
 
 const minScaleAttr = 'min-scale';
 const maxScaleAttr = 'max-scale';
+const noPanAttr = 'no-panning-until-scaled';
 function getDistance(a, b) {
     if (!b)
         return 0;
@@ -96,7 +97,7 @@ class PinchZoom extends HTMLElement {
         });
         this.addEventListener('wheel', event => this._onWheel(event));
     }
-    static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
+    static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noPanAttr]; }
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === minScaleAttr) {
             if (this.scale < this.minScale) {
@@ -132,6 +133,15 @@ class PinchZoom extends HTMLElement {
     }
     set maxScale(value) {
         this.setAttribute(maxScaleAttr, String(value));
+    }
+    get noPanningUntilScaled() {
+        const attrValue = this.getAttribute(noPanAttr);
+        if (!attrValue)
+            return false;
+        return attrValue === "true";
+    }
+    set noPanningUntilScaled(value) {
+        this.setAttribute(noPanAttr, String(value));
     }
     connectedCallback() {
         this._stageElChange();
@@ -241,6 +251,10 @@ class PinchZoom extends HTMLElement {
             x === this.x &&
             y === this.y)
             return;
+        //don't allow movement of the image until the image has been scaled, if configured to do so
+        if (this.scale === 1 && scale === this.scale && this.noPanningUntilScaled) {
+            return;
+        }
         this._transform.e = x;
         this._transform.f = y;
         this._transform.d = this._transform.a = scale;

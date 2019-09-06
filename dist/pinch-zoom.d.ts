@@ -27,6 +27,7 @@ export default class PinchZoom extends HTMLElement {
     attributeChangedCallback(name: string, oldValue: string, newValue: string): void;
     minScale: number;
     maxScale: number;
+    noPanningUntilScaled: boolean;
     connectedCallback(): void;
     readonly x: number;
     readonly y: number;
