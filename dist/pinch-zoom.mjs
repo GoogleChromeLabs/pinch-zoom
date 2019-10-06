@@ -31,6 +31,8 @@ var css = "pinch-zoom {\n  display: block;\n  overflow: hidden;\n  touch-action:
 styleInject(css);
 
 const minScaleAttr = 'min-scale';
+const maxScaleAttr = 'max-scale';
+const noPanAttr = 'no-panning-until-scaled';
 function getDistance(a, b) {
     if (!b)
         return 0;
@@ -65,6 +67,7 @@ function createPoint() {
     return getSVG().createSVGPoint();
 }
 const MIN_SCALE = 0.01;
+const MAX_SCALE = Infinity;
 class PinchZoom extends HTMLElement {
     constructor() {
         super();
@@ -90,11 +93,16 @@ class PinchZoom extends HTMLElement {
         });
         this.addEventListener('wheel', event => this._onWheel(event));
     }
-    static get observedAttributes() { return [minScaleAttr]; }
+    static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noPanAttr]; }
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === minScaleAttr) {
             if (this.scale < this.minScale) {
                 this.setTransform({ scale: this.minScale });
+            }
+        }
+        else if (name === maxScaleAttr) {
+            if (this.scale > this.maxScale) {
+                this.setTransform({ scale: this.maxScale });
             }
         }
     }
@@ -109,6 +117,27 @@ class PinchZoom extends HTMLElement {
     }
     set minScale(value) {
         this.setAttribute(minScaleAttr, String(value));
+    }
+    get maxScale() {
+        const attrValue = this.getAttribute(maxScaleAttr);
+        if (!attrValue)
+            return MAX_SCALE;
+        const value = parseFloat(attrValue);
+        if (Number.isFinite(value))
+            return Math.min(MAX_SCALE, value);
+        return MAX_SCALE;
+    }
+    set maxScale(value) {
+        this.setAttribute(maxScaleAttr, String(value));
+    }
+    get noPanningUntilScaled() {
+        const attrValue = this.getAttribute(noPanAttr);
+        if (!attrValue)
+            return false;
+        return attrValue === "true";
+    }
+    set noPanningUntilScaled(value) {
+        this.setAttribute(noPanAttr, String(value));
     }
     connectedCallback() {
         this._stageElChange();
@@ -210,14 +239,18 @@ class PinchZoom extends HTMLElement {
      * Update transform values without checking bounds. This is only called in setTransform.
      */
     _updateTransform(scale, x, y, allowChangeEvent) {
-        // Avoid scaling to zero
-        if (scale < this.minScale)
+        // Avoid scaling outside the min/max values
+        if (scale < this.minScale || scale > this.maxScale)
             return;
         // Return if there's no change
         if (scale === this.scale &&
             x === this.x &&
             y === this.y)
             return;
+        //don't allow movement of the image until the image has been scaled, if configured to do so
+        if (this.scale === 1 && scale === this.scale && this.noPanningUntilScaled) {
+            return;
+        }
         this._transform.e = x;
         this._transform.f = y;
         this._transform.d = this._transform.a = scale;

@@ -30,6 +30,8 @@ interface SetTransformOpts extends ChangeOptions {
 type ScaleRelativeToValues = 'container' | 'content';
 
 const minScaleAttr = 'min-scale';
+const maxScaleAttr = 'max-scale';
+const noPanAttr = 'no-panning-until-scaled';
 
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -80,6 +82,7 @@ function createPoint(): SVGPoint {
 }
 
 const MIN_SCALE = 0.01;
+const MAX_SCALE = Infinity;
 
 export default class PinchZoom extends HTMLElement {
   // The element that we'll transform.
@@ -89,7 +92,7 @@ export default class PinchZoom extends HTMLElement {
   // Current transform.
   private _transform: SVGMatrix = createMatrix();
 
-  static get observedAttributes() { return [minScaleAttr]; }
+  static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noPanAttr]; }
 
   constructor() {
     super();
@@ -122,6 +125,11 @@ export default class PinchZoom extends HTMLElement {
         this.setTransform({scale: this.minScale});
       }
     }
+    else if (name === maxScaleAttr) {
+      if (this.scale > this.maxScale) {
+        this.setTransform({scale: this.maxScale});
+      }
+    }
   }
 
   get minScale(): number {
@@ -136,6 +144,30 @@ export default class PinchZoom extends HTMLElement {
 
   set minScale(value: number) {
     this.setAttribute(minScaleAttr, String(value));
+  }
+
+  get maxScale(): number {
+    const attrValue = this.getAttribute(maxScaleAttr);
+    if (!attrValue) return MAX_SCALE;
+
+    const value = parseFloat(attrValue);
+    if (Number.isFinite(value)) return Math.min(MAX_SCALE, value);
+
+    return MAX_SCALE;
+  }
+
+  set maxScale(value: number) {
+    this.setAttribute(maxScaleAttr, String(value));
+  }
+
+  get noPanningUntilScaled(): boolean {
+    const attrValue = this.getAttribute(noPanAttr);
+    if(!attrValue) return false;
+    return attrValue === "true";
+  }
+  
+  set noPanningUntilScaled(value: boolean) {
+    this.setAttribute(noPanAttr, String(value));    
   }
 
   connectedCallback() {
@@ -269,8 +301,8 @@ export default class PinchZoom extends HTMLElement {
    * Update transform values without checking bounds. This is only called in setTransform.
    */
   private _updateTransform(scale: number, x: number, y: number, allowChangeEvent: boolean) {
-    // Avoid scaling to zero
-    if (scale < this.minScale) return;
+    // Avoid scaling outside the min/max values
+    if (scale < this.minScale || scale > this.maxScale) return;
 
     // Return if there's no change
     if (
@@ -278,6 +310,11 @@ export default class PinchZoom extends HTMLElement {
       x === this.x &&
       y === this.y
     ) return;
+
+    //don't allow movement of the image until the image has been scaled, if configured to do so
+    if (this.scale === 1 && scale === this.scale && this.noPanningUntilScaled) {
+      return;
+    }
 
     this._transform.e = x;
     this._transform.f = y;
