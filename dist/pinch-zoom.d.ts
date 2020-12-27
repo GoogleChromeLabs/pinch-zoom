@@ -22,14 +22,20 @@ export interface ScaleToOpts extends ChangeOptions {
 export default class PinchZoom extends HTMLElement {
     private _positioningEl?;
     private _transform;
-    static readonly observedAttributes: string[];
+    private _enablePan;
+    static get observedAttributes(): string[];
     constructor();
     attributeChangedCallback(name: string, oldValue: string, newValue: string): void;
-    minScale: number;
+    get minScale(): number;
+    set minScale(value: number);
+    get maxScale(): number;
+    set maxScale(value: number);
+    set enablePan(value: boolean);
+    get enablePan(): boolean;
     connectedCallback(): void;
-    readonly x: number;
-    readonly y: number;
-    readonly scale: number;
+    get x(): number;
+    get y(): number;
+    get scale(): number;
     /**
      * Change the scale, adjusting x/y by a given transform origin.
      */

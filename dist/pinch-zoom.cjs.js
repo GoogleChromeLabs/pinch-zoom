@@ -35,6 +35,8 @@ var css = "pinch-zoom {\n  display: block;\n  overflow: hidden;\n  touch-action:
 styleInject(css);
 
 const minScaleAttr = 'min-scale';
+const maxScaleAttr = 'max-scale';
+const noDefaultPanAttr = 'no-default-pan';
 function getDistance(a, b) {
     if (!b)
         return 0;
@@ -69,11 +71,14 @@ function createPoint() {
     return getSVG().createSVGPoint();
 }
 const MIN_SCALE = 0.01;
+const MAX_SCALE = 10.00;
 class PinchZoom extends HTMLElement {
     constructor() {
         super();
         // Current transform.
         this._transform = createMatrix();
+        //if we are allowing panning
+        this._enablePan = true;
         // Watch for children changes.
         // Note this won't fire for initial contents,
         // so _stageElChange is also called in connectedCallback.
@@ -85,20 +90,39 @@ class PinchZoom extends HTMLElement {
                 // We only want to track 2 pointers at most
                 if (pointerTracker.currentPointers.length === 2 || !this._positioningEl)
                     return false;
-                event.preventDefault();
+                //we allow default for the first pointer if enablePan is false
+                if (this.enablePan || pointerTracker.currentPointers.length == 1) {
+                    this.enablePan = true; //a second finger automatically enables panning
+                    event.preventDefault();
+                }
                 return true;
             },
             move: (previousPointers) => {
-                this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+                if (this.enablePan) {
+                    this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+                }
             },
         });
         this.addEventListener('wheel', event => this._onWheel(event));
     }
-    static get observedAttributes() { return [minScaleAttr]; }
+    static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr]; }
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === minScaleAttr) {
             if (this.scale < this.minScale) {
                 this.setTransform({ scale: this.minScale });
+            }
+        }
+        if (name === maxScaleAttr) {
+            if (this.scale > this.maxScale) {
+                this.setTransform({ scale: this.maxScale });
+            }
+        }
+        if (name === noDefaultPanAttr) {
+            if (newValue == "1" || newValue == "true") {
+                this.enablePan = false;
+            }
+            else if (this.scale === 1) {
+                this.enablePan = true;
             }
         }
     }
@@ -113,6 +137,30 @@ class PinchZoom extends HTMLElement {
     }
     set minScale(value) {
         this.setAttribute(minScaleAttr, String(value));
+    }
+    get maxScale() {
+        const attrValue = this.getAttribute(maxScaleAttr);
+        if (!attrValue)
+            return MAX_SCALE;
+        const value = parseFloat(attrValue);
+        if (Number.isFinite(value))
+            return Math.min(MAX_SCALE, value);
+        return MAX_SCALE;
+    }
+    set maxScale(value) {
+        this.setAttribute(maxScaleAttr, String(value));
+    }
+    set enablePan(value) {
+        this._enablePan = value;
+        if (!this._enablePan) {
+            this.style.touchAction = 'pan-y pan-x';
+        }
+        else if (this._enablePan && this.style.touchAction != 'none') {
+            this.style.touchAction = 'none';
+        }
+    }
+    get enablePan() {
+        return this._enablePan;
     }
     connectedCallback() {
         this._stageElChange();
@@ -216,6 +264,8 @@ class PinchZoom extends HTMLElement {
     _updateTransform(scale, x, y, allowChangeEvent) {
         // Avoid scaling to zero
         if (scale < this.minScale)
+            return;
+        if (scale > this.maxScale)
             return;
         // Return if there's no change
         if (scale === this.scale &&
