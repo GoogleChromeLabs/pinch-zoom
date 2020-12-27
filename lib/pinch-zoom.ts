@@ -31,6 +31,7 @@ type ScaleRelativeToValues = 'container' | 'content';
 
 const minScaleAttr = 'min-scale';
 const maxScaleAttr = 'max-scale';
+const noDefaultPanAttr = 'no-default-pan';
 
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -91,7 +92,10 @@ export default class PinchZoom extends HTMLElement {
   // Current transform.
   private _transform: SVGMatrix = createMatrix();
 
-    static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
+  //if we are allowing panning
+  private _enablePan = true;
+    
+  static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr]; }
 
   constructor() {
     super();
@@ -107,11 +111,18 @@ export default class PinchZoom extends HTMLElement {
       start: (pointer, event) => {
         // We only want to track 2 pointers at most
         if (pointerTracker.currentPointers.length === 2 || !this._positioningEl) return false;
-        event.preventDefault();
+
+        //we allow default for the first pointer if enablePan is false
+        if (this.enablePan || pointerTracker.currentPointers.length == 1){
+          this.enablePan = true;//a second finger automatically enables panning
+          event.preventDefault();
+        }
         return true;
       },
       move: (previousPointers) => {
-        this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+        if (this.enablePan){
+          this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+        }
       },
     });
 
@@ -129,7 +140,13 @@ export default class PinchZoom extends HTMLElement {
         this.setTransform({scale: this.maxScale});
       }
     }
-
+    if (name === noDefaultPanAttr) {
+      if (newValue == "1" || newValue == "true"){
+        this.enablePan = false;
+      } else if (this.scale === 1){
+        this.enablePan = true;
+      }
+    }
   }
 
   get minScale(): number {
@@ -158,6 +175,20 @@ export default class PinchZoom extends HTMLElement {
 
   set maxScale(value: number) {
     this.setAttribute(maxScaleAttr, String(value));
+  }
+
+  set enablePan(value: boolean){
+    this._enablePan = value;
+
+    if (!this._enablePan){
+      this.style.touchAction = 'pan-y pan-x';
+    } else if (this._enablePan && this.style.touchAction != 'none'){
+      this.style.touchAction = 'none';
+    }
+  }
+
+  get enablePan(){
+    return this._enablePan;
   }
 
   connectedCallback() {
