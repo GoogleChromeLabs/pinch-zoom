@@ -143,7 +143,7 @@ export default class PinchZoom extends HTMLElement {
     if (name === noDefaultPanAttr) {
       if (newValue == "1" || newValue == "true"){
         this.enablePan = false;
-      } else if (this.scale === 1){
+      } else {
         this.enablePan = true;
       }
     }
