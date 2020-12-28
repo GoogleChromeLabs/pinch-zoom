@@ -112,8 +112,9 @@ export default class PinchZoom extends HTMLElement {
         // We only want to track 2 pointers at most
         if (pointerTracker.currentPointers.length === 2 || !this._positioningEl) return false;
 
-        //we allow default for the first pointer if enablePan is false
-        if (this.enablePan || pointerTracker.currentPointers.length == 1){
+        //we allow default for the first pointer if enablePan is false or we are using a mouse
+        if (this.enablePan || pointerTracker.currentPointers.length == 1 ||
+            (event instanceof PointerEvent && event.pointerType == "mouse")){
           this.enablePan = true;//a second finger automatically enables panning
           event.preventDefault();
         }
