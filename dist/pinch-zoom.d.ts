@@ -23,6 +23,7 @@ export default class PinchZoom extends HTMLElement {
     private _positioningEl?;
     private _transform;
     private _enablePan;
+    private _twoFingerPan;
     static get observedAttributes(): string[];
     constructor();
     attributeChangedCallback(name: string, oldValue: string, newValue: string): void;
@@ -32,6 +33,8 @@ export default class PinchZoom extends HTMLElement {
     set maxScale(value: number);
     set enablePan(value: boolean);
     get enablePan(): boolean;
+    set twoFingerPan(value: boolean);
+    get twoFingerPan(): boolean;
     connectedCallback(): void;
     get x(): number;
     get y(): number;

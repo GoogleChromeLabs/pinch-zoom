@@ -235,6 +235,7 @@ var PinchZoom = (function () {
     const minScaleAttr = 'min-scale';
     const maxScaleAttr = 'max-scale';
     const noDefaultPanAttr = 'no-default-pan';
+    const twoFingerPanAttr = 'two-finger-pan';
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -269,7 +270,7 @@ var PinchZoom = (function () {
         return getSVG().createSVGPoint();
     }
     const MIN_SCALE = 0.01;
-    const MAX_SCALE = 10.00;
+    const MAX_SCALE = 100.00;
     class PinchZoom extends HTMLElement {
         constructor() {
             super();
@@ -277,6 +278,7 @@ var PinchZoom = (function () {
             this._transform = createMatrix();
             //if we are allowing panning
             this._enablePan = true;
+            this._twoFingerPan = false;
             // Watch for children changes.
             // Note this won't fire for initial contents,
             // so _stageElChange is also called in connectedCallback.
@@ -288,8 +290,9 @@ var PinchZoom = (function () {
                     // We only want to track 2 pointers at most
                     if (pointerTracker.currentPointers.length === 2 || !this._positioningEl)
                         return false;
-                    //we allow default for the first pointer if enablePan is false
-                    if (this.enablePan || pointerTracker.currentPointers.length == 1) {
+                    //we allow default for the first pointer if enablePan is false or we are using a mouse
+                    if (this.enablePan || pointerTracker.currentPointers.length == 1 ||
+                        (event instanceof PointerEvent && event.pointerType == "mouse")) {
                         this.enablePan = true; //a second finger automatically enables panning
                         event.preventDefault();
                     }
@@ -300,10 +303,16 @@ var PinchZoom = (function () {
                         this._onPointerMove(previousPointers, pointerTracker.currentPointers);
                     }
                 },
+                end: (pointer, event, cancelled) => {
+                    //revert to no panning when in twoFingerPan mode
+                    if (this.twoFingerPan && pointerTracker.currentPointers.length == 1) {
+                        this.enablePan = false;
+                    }
+                },
             });
             this.addEventListener('wheel', event => this._onWheel(event));
         }
-        static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr]; }
+        static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr, twoFingerPanAttr]; }
         attributeChangedCallback(name, oldValue, newValue) {
             if (name === minScaleAttr) {
                 if (this.scale < this.minScale) {
@@ -319,8 +328,17 @@ var PinchZoom = (function () {
                 if (newValue == "1" || newValue == "true") {
                     this.enablePan = false;
                 }
-                else if (this.scale === 1) {
+                else {
                     this.enablePan = true;
+                }
+            }
+            if (name === twoFingerPanAttr) {
+                if (newValue == "1" || newValue == "true") {
+                    this.twoFingerPan = true;
+                    this.enablePan = false;
+                }
+                else {
+                    this.twoFingerPan = false;
                 }
             }
         }
@@ -359,6 +377,12 @@ var PinchZoom = (function () {
         }
         get enablePan() {
             return this._enablePan;
+        }
+        set twoFingerPan(value) {
+            this._twoFingerPan = value;
+        }
+        get twoFingerPan() {
+            return this._twoFingerPan;
         }
         connectedCallback() {
             this._stageElChange();
