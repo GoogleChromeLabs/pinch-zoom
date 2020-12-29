@@ -32,6 +32,7 @@ type ScaleRelativeToValues = 'container' | 'content';
 const minScaleAttr = 'min-scale';
 const maxScaleAttr = 'max-scale';
 const noDefaultPanAttr = 'no-default-pan';
+const twoFingerPanAttr = 'two-finger-pan';
 
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -94,8 +95,9 @@ export default class PinchZoom extends HTMLElement {
 
   //if we are allowing panning
   private _enablePan = true;
-    
-  static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr]; }
+  private _twoFingerPan = false;
+
+  static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr, twoFingerPanAttr]; }
 
   constructor() {
     super();
@@ -125,6 +127,12 @@ export default class PinchZoom extends HTMLElement {
           this._onPointerMove(previousPointers, pointerTracker.currentPointers);
         }
       },
+      end: (pointer, event, cancelled) => {
+        //revert to no panning when in twoFingerPan mode
+        if (this.twoFingerPan && pointerTracker.currentPointers.length == 1){
+          this.enablePan = false;
+        }
+      },
     });
 
     this.addEventListener('wheel', event => this._onWheel(event));
@@ -146,6 +154,14 @@ export default class PinchZoom extends HTMLElement {
         this.enablePan = false;
       } else {
         this.enablePan = true;
+      }
+    }
+    if (name === twoFingerPanAttr) {
+      if (newValue == "1" || newValue == "true"){
+        this.twoFingerPan = true;
+        this.enablePan = false;
+      } else {
+        this.twoFingerPan = false;
       }
     }
   }
@@ -190,6 +206,14 @@ export default class PinchZoom extends HTMLElement {
 
   get enablePan(){
     return this._enablePan;
+  }
+
+  set twoFingerPan(value: boolean){
+    this._twoFingerPan = value;
+  }
+
+  get twoFingerPan(){
+    return this._twoFingerPan;
   }
 
   connectedCallback() {
