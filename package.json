@@ -26,17 +26,17 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/pinch-zoom#readme",
   "dependencies": {
-    "pointer-tracker": "^2.0.3"
+    "pointer-tracker": "^2.4.0"
   },
   "devDependencies": {
     "rollup": "^0.66.6",
     "rollup-plugin-node-resolve": "^3.4.0",
-    "rollup-plugin-postcss": "^1.6.2",
+    "rollup-plugin-postcss": "^1.6.3",
     "rollup-plugin-terser": "^3.0.0",
     "rollup-plugin-typescript2": "^0.17.2",
-    "tslint": "^5.11.0",
-    "tslint-config-airbnb": "^5.11.0",
+    "tslint": "^5.20.1",
+    "tslint-config-airbnb": "^5.11.2",
     "tslint-react": "^3.6.0",
-    "typescript": "^3.1.4"
+    "typescript": "^3.9.7"
   }
 }

@@ -13,7 +13,8 @@ var PinchZoom = (function () {
             if (self.Touch && nativePointer instanceof Touch) {
                 this.id = nativePointer.identifier;
             }
-            else if (isPointerEvent(nativePointer)) { // is PointerEvent
+            else if (isPointerEvent(nativePointer)) {
+                // is PointerEvent
                 this.id = nativePointer.pointerId;
             }
         }
@@ -22,7 +23,7 @@ var PinchZoom = (function () {
          */
         getCoalesced() {
             if ('getCoalescedEvents' in this.nativePointer) {
-                return this.nativePointer.getCoalescedEvents().map(p => new Pointer(p));
+                return this.nativePointer.getCoalescedEvents().map((p) => new Pointer(p));
             }
             return [this];
         }
@@ -37,30 +38,126 @@ var PinchZoom = (function () {
          * Track pointers across a particular element
          *
          * @param element Element to monitor.
-         * @param callbacks
+         * @param options
          */
-        constructor(_element, callbacks) {
+        constructor(_element, { start = () => true, move = noop, end = noop, rawUpdates = false, } = {}) {
             this._element = _element;
             /**
              * State of the tracked pointers when they were pressed/touched.
              */
             this.startPointers = [];
             /**
-             * Latest state of the tracked pointers. Contains the same number
-             * of pointers, and in the same order as this.startPointers.
+             * Latest state of the tracked pointers. Contains the same number of pointers, and in the same
+             * order as this.startPointers.
              */
             this.currentPointers = [];
-            const { start = () => true, move = noop, end = noop, } = callbacks;
+            /**
+             * Listener for mouse/pointer starts.
+             *
+             * @param event This will only be a MouseEvent if the browser doesn't support pointer events.
+             */
+            this._pointerStart = (event) => {
+                if (event.button !== 0 /* Left */)
+                    return;
+                if (!this._triggerPointerStart(new Pointer(event), event))
+                    return;
+                // Add listeners for additional events.
+                // The listeners may already exist, but no harm in adding them again.
+                if (isPointerEvent(event)) {
+                    const capturingElement = event.target && 'setPointerCapture' in event.target
+                        ? event.target
+                        : this._element;
+                    capturingElement.setPointerCapture(event.pointerId);
+                    this._element.addEventListener(this._rawUpdates ? 'pointerrawupdate' : 'pointermove', this._move);
+                    this._element.addEventListener('pointerup', this._pointerEnd);
+                    this._element.addEventListener('pointercancel', this._pointerEnd);
+                }
+                else {
+                    // MouseEvent
+                    window.addEventListener('mousemove', this._move);
+                    window.addEventListener('mouseup', this._pointerEnd);
+                }
+            };
+            /**
+             * Listener for touchstart.
+             * Only used if the browser doesn't support pointer events.
+             */
+            this._touchStart = (event) => {
+                for (const touch of Array.from(event.changedTouches)) {
+                    this._triggerPointerStart(new Pointer(touch), event);
+                }
+            };
+            /**
+             * Listener for pointer/mouse/touch move events.
+             */
+            this._move = (event) => {
+                const previousPointers = this.currentPointers.slice();
+                const changedPointers = 'changedTouches' in event // Shortcut for 'is touch event'.
+                    ? Array.from(event.changedTouches).map((t) => new Pointer(t))
+                    : [new Pointer(event)];
+                const trackedChangedPointers = [];
+                for (const pointer of changedPointers) {
+                    const index = this.currentPointers.findIndex((p) => p.id === pointer.id);
+                    if (index === -1)
+                        continue; // Not a pointer we're tracking
+                    trackedChangedPointers.push(pointer);
+                    this.currentPointers[index] = pointer;
+                }
+                if (trackedChangedPointers.length === 0)
+                    return;
+                this._moveCallback(previousPointers, trackedChangedPointers, event);
+            };
+            /**
+             * Call the end callback for this pointer.
+             *
+             * @param pointer Pointer
+             * @param event Related event
+             */
+            this._triggerPointerEnd = (pointer, event) => {
+                const index = this.currentPointers.findIndex((p) => p.id === pointer.id);
+                // Not a pointer we're interested in?
+                if (index === -1)
+                    return false;
+                this.currentPointers.splice(index, 1);
+                this.startPointers.splice(index, 1);
+                const cancelled = event.type === 'touchcancel' || event.type === 'pointercancel';
+                this._endCallback(pointer, event, cancelled);
+                return true;
+            };
+            /**
+             * Listener for mouse/pointer ends.
+             *
+             * @param event This will only be a MouseEvent if the browser doesn't support pointer events.
+             */
+            this._pointerEnd = (event) => {
+                if (!this._triggerPointerEnd(new Pointer(event), event))
+                    return;
+                if (isPointerEvent(event)) {
+                    if (this.currentPointers.length)
+                        return;
+                    this._element.removeEventListener(this._rawUpdates ? 'pointerrawupdate' : 'pointermove', this._move);
+                    this._element.removeEventListener('pointerup', this._pointerEnd);
+                    this._element.removeEventListener('pointercancel', this._pointerEnd);
+                }
+                else {
+                    // MouseEvent
+                    window.removeEventListener('mousemove', this._move);
+                    window.removeEventListener('mouseup', this._pointerEnd);
+                }
+            };
+            /**
+             * Listener for touchend.
+             * Only used if the browser doesn't support pointer events.
+             */
+            this._touchEnd = (event) => {
+                for (const touch of Array.from(event.changedTouches)) {
+                    this._triggerPointerEnd(new Pointer(touch), event);
+                }
+            };
             this._startCallback = start;
             this._moveCallback = move;
             this._endCallback = end;
-            // Bind methods
-            this._pointerStart = this._pointerStart.bind(this);
-            this._touchStart = this._touchStart.bind(this);
-            this._move = this._move.bind(this);
-            this._triggerPointerEnd = this._triggerPointerEnd.bind(this);
-            this._pointerEnd = this._pointerEnd.bind(this);
-            this._touchEnd = this._touchEnd.bind(this);
+            this._rawUpdates = rawUpdates && 'onpointerrawupdate' in window;
             // Add listeners
             if (self.PointerEvent) {
                 this._element.addEventListener('pointerdown', this._pointerStart);
@@ -70,7 +167,24 @@ var PinchZoom = (function () {
                 this._element.addEventListener('touchstart', this._touchStart);
                 this._element.addEventListener('touchmove', this._move);
                 this._element.addEventListener('touchend', this._touchEnd);
+                this._element.addEventListener('touchcancel', this._touchEnd);
             }
+        }
+        /**
+         * Remove all listeners.
+         */
+        stop() {
+            this._element.removeEventListener('pointerdown', this._pointerStart);
+            this._element.removeEventListener('mousedown', this._pointerStart);
+            this._element.removeEventListener('touchstart', this._touchStart);
+            this._element.removeEventListener('touchmove', this._move);
+            this._element.removeEventListener('touchend', this._touchEnd);
+            this._element.removeEventListener('touchcancel', this._touchEnd);
+            this._element.removeEventListener(this._rawUpdates ? 'pointerrawupdate' : 'pointermove', this._move);
+            this._element.removeEventListener('pointerup', this._pointerEnd);
+            this._element.removeEventListener('pointercancel', this._pointerEnd);
+            window.removeEventListener('mousemove', this._move);
+            window.removeEventListener('mouseup', this._pointerEnd);
         }
         /**
          * Call the start callback for this pointer, and track it if the user wants.
@@ -85,103 +199,6 @@ var PinchZoom = (function () {
             this.currentPointers.push(pointer);
             this.startPointers.push(pointer);
             return true;
-        }
-        /**
-         * Listener for mouse/pointer starts. Bound to the class in the constructor.
-         *
-         * @param event This will only be a MouseEvent if the browser doesn't support
-         * pointer events.
-         */
-        _pointerStart(event) {
-            if (event.button !== 0 /* Left */)
-                return;
-            if (!this._triggerPointerStart(new Pointer(event), event))
-                return;
-            // Add listeners for additional events.
-            // The listeners may already exist, but no harm in adding them again.
-            if (isPointerEvent(event)) {
-                this._element.setPointerCapture(event.pointerId);
-                this._element.addEventListener('pointermove', this._move);
-                this._element.addEventListener('pointerup', this._pointerEnd);
-            }
-            else { // MouseEvent
-                window.addEventListener('mousemove', this._move);
-                window.addEventListener('mouseup', this._pointerEnd);
-            }
-        }
-        /**
-         * Listener for touchstart. Bound to the class in the constructor.
-         * Only used if the browser doesn't support pointer events.
-         */
-        _touchStart(event) {
-            for (const touch of Array.from(event.changedTouches)) {
-                this._triggerPointerStart(new Pointer(touch), event);
-            }
-        }
-        /**
-         * Listener for pointer/mouse/touch move events.
-         * Bound to the class in the constructor.
-         */
-        _move(event) {
-            const previousPointers = this.currentPointers.slice();
-            const changedPointers = ('changedTouches' in event) ? // Shortcut for 'is touch event'.
-                Array.from(event.changedTouches).map(t => new Pointer(t)) :
-                [new Pointer(event)];
-            const trackedChangedPointers = [];
-            for (const pointer of changedPointers) {
-                const index = this.currentPointers.findIndex(p => p.id === pointer.id);
-                if (index === -1)
-                    continue; // Not a pointer we're tracking
-                trackedChangedPointers.push(pointer);
-                this.currentPointers[index] = pointer;
-            }
-            if (trackedChangedPointers.length === 0)
-                return;
-            this._moveCallback(previousPointers, trackedChangedPointers, event);
-        }
-        /**
-         * Call the end callback for this pointer.
-         *
-         * @param pointer Pointer
-         * @param event Related event
-         */
-        _triggerPointerEnd(pointer, event) {
-            const index = this.currentPointers.findIndex(p => p.id === pointer.id);
-            // Not a pointer we're interested in?
-            if (index === -1)
-                return false;
-            this.currentPointers.splice(index, 1);
-            this.startPointers.splice(index, 1);
-            this._endCallback(pointer, event);
-            return true;
-        }
-        /**
-         * Listener for mouse/pointer ends. Bound to the class in the constructor.
-         * @param event This will only be a MouseEvent if the browser doesn't support
-         * pointer events.
-         */
-        _pointerEnd(event) {
-            if (!this._triggerPointerEnd(new Pointer(event), event))
-                return;
-            if (isPointerEvent(event)) {
-                if (this.currentPointers.length)
-                    return;
-                this._element.removeEventListener('pointermove', this._move);
-                this._element.removeEventListener('pointerup', this._pointerEnd);
-            }
-            else { // MouseEvent
-                window.removeEventListener('mousemove', this._move);
-                window.removeEventListener('mouseup', this._pointerEnd);
-            }
-        }
-        /**
-         * Listener for touchend. Bound to the class in the constructor.
-         * Only used if the browser doesn't support pointer events.
-         */
-        _touchEnd(event) {
-            for (const touch of Array.from(event.changedTouches)) {
-                this._triggerPointerEnd(new Pointer(touch), event);
-            }
         }
     }
 
@@ -216,6 +233,9 @@ var PinchZoom = (function () {
     styleInject(css);
 
     const minScaleAttr = 'min-scale';
+    const maxScaleAttr = 'max-scale';
+    const noDefaultPanAttr = 'no-default-pan';
+    const twoFingerPanAttr = 'two-finger-pan';
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -250,11 +270,15 @@ var PinchZoom = (function () {
         return getSVG().createSVGPoint();
     }
     const MIN_SCALE = 0.01;
+    const MAX_SCALE = 100.00;
     class PinchZoom extends HTMLElement {
         constructor() {
             super();
             // Current transform.
             this._transform = createMatrix();
+            //if we are allowing panning
+            this._enablePan = true;
+            this._twoFingerPan = false;
             // Watch for children changes.
             // Note this won't fire for initial contents,
             // so _stageElChange is also called in connectedCallback.
@@ -266,20 +290,55 @@ var PinchZoom = (function () {
                     // We only want to track 2 pointers at most
                     if (pointerTracker.currentPointers.length === 2 || !this._positioningEl)
                         return false;
-                    event.preventDefault();
+                    //we allow default for the first pointer if enablePan is false or we are using a mouse
+                    if (this.enablePan || pointerTracker.currentPointers.length == 1 ||
+                        (event instanceof PointerEvent && event.pointerType == "mouse")) {
+                        this.enablePan = true; //a second finger automatically enables panning
+                        event.preventDefault();
+                    }
                     return true;
                 },
                 move: (previousPointers) => {
-                    this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+                    if (this.enablePan) {
+                        this._onPointerMove(previousPointers, pointerTracker.currentPointers);
+                    }
+                },
+                end: (pointer, event, cancelled) => {
+                    //revert to no panning when in twoFingerPan mode
+                    if (this.twoFingerPan && pointerTracker.currentPointers.length == 1) {
+                        this.enablePan = false;
+                    }
                 },
             });
             this.addEventListener('wheel', event => this._onWheel(event));
         }
-        static get observedAttributes() { return [minScaleAttr]; }
+        static get observedAttributes() { return [minScaleAttr, maxScaleAttr, noDefaultPanAttr, twoFingerPanAttr]; }
         attributeChangedCallback(name, oldValue, newValue) {
             if (name === minScaleAttr) {
                 if (this.scale < this.minScale) {
                     this.setTransform({ scale: this.minScale });
+                }
+            }
+            if (name === maxScaleAttr) {
+                if (this.scale > this.maxScale) {
+                    this.setTransform({ scale: this.maxScale });
+                }
+            }
+            if (name === noDefaultPanAttr) {
+                if (newValue == "1" || newValue == "true") {
+                    this.enablePan = false;
+                }
+                else {
+                    this.enablePan = true;
+                }
+            }
+            if (name === twoFingerPanAttr) {
+                if (newValue == "1" || newValue == "true") {
+                    this.twoFingerPan = true;
+                    this.enablePan = false;
+                }
+                else {
+                    this.twoFingerPan = false;
                 }
             }
         }
@@ -294,6 +353,36 @@ var PinchZoom = (function () {
         }
         set minScale(value) {
             this.setAttribute(minScaleAttr, String(value));
+        }
+        get maxScale() {
+            const attrValue = this.getAttribute(maxScaleAttr);
+            if (!attrValue)
+                return MAX_SCALE;
+            const value = parseFloat(attrValue);
+            if (Number.isFinite(value))
+                return Math.min(MAX_SCALE, value);
+            return MAX_SCALE;
+        }
+        set maxScale(value) {
+            this.setAttribute(maxScaleAttr, String(value));
+        }
+        set enablePan(value) {
+            this._enablePan = value;
+            if (!this._enablePan) {
+                this.style.touchAction = 'pan-y pan-x';
+            }
+            else if (this._enablePan && this.style.touchAction != 'none') {
+                this.style.touchAction = 'none';
+            }
+        }
+        get enablePan() {
+            return this._enablePan;
+        }
+        set twoFingerPan(value) {
+            this._twoFingerPan = value;
+        }
+        get twoFingerPan() {
+            return this._twoFingerPan;
         }
         connectedCallback() {
             this._stageElChange();
@@ -397,6 +486,8 @@ var PinchZoom = (function () {
         _updateTransform(scale, x, y, allowChangeEvent) {
             // Avoid scaling to zero
             if (scale < this.minScale)
+                return;
+            if (scale > this.maxScale)
                 return;
             // Return if there's no change
             if (scale === this.scale &&
