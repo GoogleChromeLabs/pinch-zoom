@@ -33,7 +33,7 @@
     "rollup-plugin-node-resolve": "^3.4.0",
     "rollup-plugin-postcss": "^1.6.2",
     "rollup-plugin-terser": "^3.0.0",
-    "rollup-plugin-typescript2": "^0.17.2",
+    "rollup-plugin-typescript2": "^0.34.1",
     "tslint": "^5.11.0",
     "tslint-config-airbnb": "^5.11.0",
     "tslint-react": "^3.6.0",
